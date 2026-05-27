@@ -3,9 +3,9 @@ pipeline {
 
     environment {
         DOCKER_IMAGE    = 'techstore-app'
-        DOCKER_HUB_USER = 'kullanici-adi'          // Docker Hub kullanıcı adınız
+        DOCKER_HUB_USER = 'kullanici-adi'          // ← Buraya Docker Hub kullanıcı adını yaz
         SONAR_HOST      = 'http://localhost:9000'
-        SONAR_TOKEN     = credentials('sonar-token') // Jenkins Credentials'a ekleyin
+        SONAR_TOKEN     = credentials('sonar-token')
         SLACK_CHANNEL   = '#devops-techstore'
     }
 
@@ -37,7 +37,8 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-                    pytest tests/test_app.py \
+                    mkdir -p test-results
+                    PYTHONPATH=. pytest tests/test_app.py \
                         -v \
                         --tb=short \
                         --junit-xml=test-results/unit-tests.xml \
@@ -122,11 +123,9 @@ pipeline {
         stage('Deploy') {
             steps {
                 sh """
-                    # Eski konteyneri durdur
                     docker stop techstore-app 2>/dev/null || true
                     docker rm techstore-app 2>/dev/null || true
 
-                    # Yeni versiyonu başlat
                     docker run -d \
                         --name techstore-app \
                         --restart unless-stopped \
@@ -143,14 +142,12 @@ pipeline {
         stage('Smoke Test') {
             steps {
                 sh '''
-                    # /health endpoint kontrol
                     STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/health)
                     if [ "$STATUS" != "200" ]; then
                         echo "❌ Smoke test başarısız! HTTP: $STATUS"
                         exit 1
                     fi
 
-                    # Ana sayfa kontrol
                     STATUS2=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/)
                     if [ "$STATUS2" != "200" ]; then
                         echo "❌ Ana sayfa erişilemiyor! HTTP: $STATUS2"
@@ -167,7 +164,7 @@ pipeline {
             steps {
                 sh '''
                     . venv/bin/activate
-                    pytest tests/test_ui.py -v --tb=short || true
+                    PYTHONPATH=. pytest tests/test_ui.py -v --tb=short || true
                 '''
             }
         }
@@ -204,7 +201,6 @@ pipeline {
             )
         }
         always {
-            // Eski imajları temizle (son 3'ü tut)
             sh "docker image prune -f --filter 'until=72h' || true"
             cleanWs()
         }
