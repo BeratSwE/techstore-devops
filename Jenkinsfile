@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         DOCKER_IMAGE    = 'techstore-app'
-        DOCKER_HUB_USER = 'kullanici-adi'          // ← Buraya Docker Hub kullanıcı adını yaz
+        DOCKER_HUB_USER = 'berbatadam'          // ← Buraya Docker Hub kullanıcı adını yaz
         SONAR_HOST      = 'http://localhost:9000'
         SONAR_TOKEN     = credentials('sonar-token')
         SLACK_CHANNEL   = '#devops-techstore'
