@@ -100,24 +100,41 @@ pipeline {
         }
 
         // ── 7. DOCKER HUB'A GÖNDER ──────────────────────────────
-        stage('Push to Docker Hub') {
-            steps {
+        // ── 7. DOCKER HUB'A GÖNDER ──────────────────────────────
+stage('Push to Docker Hub') {
+    steps {
+        script {
+            try {
+                sh 'docker --version'
+                
                 withCredentials([usernamePassword(
                     credentialsId: 'docker-hub-creds',
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    sh '''
-                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                        docker tag ${DOCKER_IMAGE}:latest \$DOCKER_USER/${DOCKER_IMAGE}:${env.BUILD_NUMBER}
-                        docker tag ${DOCKER_IMAGE}:latest \$DOCKER_USER/${DOCKER_IMAGE}:latest
-                        docker push \$DOCKER_USER/${DOCKER_IMAGE}:${env.BUILD_NUMBER}
-                        docker push \$DOCKER_USER/${DOCKER_IMAGE}:latest
-                    '''
+                    // Çift tırnağa ( """) geçtik, böylece Jenkins değişkenleri doğrudan okuyacak
+                    sh """
+                        echo "Logging in to Docker Hub..."
+                        echo "${DOCKER_PASS}" | docker login -u "${DOCKER_USER}" --password-stdin
+                        
+                        echo "Tagging images..."
+                        docker tag techstore-app:latest ${DOCKER_USER}/techstore-app:${BUILD_NUMBER}
+                        docker tag techstore-app:latest ${DOCKER_USER}/techstore-app:latest
+                        
+                        echo "Pushing images..."
+                        docker push ${DOCKER_USER}/techstore-app:${BUILD_NUMBER}
+                        docker push ${DOCKER_USER}/techstore-app:latest
+                    """
                 }
                 echo "✅ İmaj Docker Hub'a yüklendi"
+            } catch (Exception e) {
+                echo "❌ Docker Hub aşamasında hata yakalandı: ${e.getMessage()}"
+                currentBuild.result = 'FAILURE'
+                error("Docker Hub push adımı başarısız oldu.")
             }
         }
+    }
+}
 
         // ── 8. DEPLOY ───────────────────────────────────────────
         stage('Deploy') {
