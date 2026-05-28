@@ -139,21 +139,24 @@ stage('Push to Docker Hub') {
         // ── 8. DEPLOY ───────────────────────────────────────────
         stage('Deploy') {
             steps {
-                sh """
-                    docker stop techstore-app 2>/dev/null || true
-                    docker rm techstore-app 2>/dev/null || true
-
+                sh '''
+                    echo "Eski konteynerler temizleniyor..."
+                    docker stop techstore-app || true
+                    docker rm techstore-app || true
+            
+                    echo "5000 portunu işgal eden gizli süreçler (Flask vb.) temizleniyor..."
+                    # 5000 portunda çalışan bir süreç varsa PID'sini bulup zorla kapatır
+                    sudo fuser -k 5000/tcp || true
+            
+                    echo "Yeni konteyner başlatılıyor..."
                     docker run -d \
-                        --name techstore-app \
-                        --restart unless-stopped \
-                        -p 5000:5000 \
-                        ${DOCKER_HUB_USER}/${DOCKER_IMAGE}:latest
-
-                    echo "⏳ Sağlık kontrolü bekleniyor..."
-                    sleep 10
-                """
-            }
-        }
+                    --name techstore-app \
+                    --restart unless-stopped \
+                    -p 5000:5000 \
+                    berbatadam/techstore-app:latest
+                '''
+    }
+}
 
         // ── 9. SMOKE TEST ───────────────────────────────────────
         stage('Smoke Test') {
