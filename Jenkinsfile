@@ -107,13 +107,13 @@ pipeline {
                     usernameVariable: 'DOCKER_USER',
                     passwordVariable: 'DOCKER_PASS'
                 )]) {
-                    sh """
+                    sh '''
                         echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
                         docker tag ${DOCKER_IMAGE}:latest \$DOCKER_USER/${DOCKER_IMAGE}:${env.BUILD_NUMBER}
                         docker tag ${DOCKER_IMAGE}:latest \$DOCKER_USER/${DOCKER_IMAGE}:latest
                         docker push \$DOCKER_USER/${DOCKER_IMAGE}:${env.BUILD_NUMBER}
                         docker push \$DOCKER_USER/${DOCKER_IMAGE}:latest
-                    """
+                    '''
                 }
                 echo "✅ İmaj Docker Hub'a yüklendi"
             }
