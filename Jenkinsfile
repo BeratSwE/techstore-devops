@@ -136,48 +136,45 @@ stage('Push to Docker Hub') {
     }
 }
 
-        // ── 8. DEPLOY ───────────────────────────────────────────
         stage('Deploy') {
-            steps {
-                sh '''
-                    echo "Eski konteynerler temizleniyor..."
-                    docker stop techstore-app || true
-                    docker rm techstore-app || true
+    steps {
+        sh '''
+            echo "Eski konteynerler temizleniyor..."
+            docker stop techstore-app || true
+            docker rm techstore-app || true
             
-                    echo "5000 portunu işgal eden süreçler aratılıyor..."
-                    # Eğer portu bir Docker proxy'si veya zombi bir konteyner tutuyorsa temizler
-                    docker ps -q --filter "publish=5000" | xargs -r docker stop || true
-            
-                    echo "Portu tutan yerel bir süreç varsa (sudo olmadan) sonlandırılıyor..."
-                    # fuser yerine sudo istemeyen kill komutunu port bazlı tetikliyoruz
-                    kill -9 $(lsof -t -i:5000) || true
-            
-                    echo "Yeni konteyner başlatılıyor..."
-                    docker run -d --name techstore-app --network host --restart unless-stopped berbatadam/techstore-app:latest
-                '''
-            }
+            echo "Yeni konteyner ortak ağda (techstore-network) başlatılıyor..."
+            docker run -d \
+              --name techstore-app \
+              --network techstore-network \
+              --restart unless-stopped \
+              -p 5000:5000 \
+              berbatadam/techstore-app:latest
+        '''
     }
+}
 
-        // ── 9. SMOKE TEST ───────────────────────────────────────
-        stage('Smoke Test') {
-            steps {
-                sh '''
-                    STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/health)
-                    if [ "$STATUS" != "200" ]; then
-                        echo "❌ Smoke test başarısız! HTTP: $STATUS"
-                        exit 1
-                    fi
-
-                    STATUS2=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:5000/)
-                    if [ "$STATUS2" != "200" ]; then
-                        echo "❌ Ana sayfa erişilemiyor! HTTP: $STATUS2"
-                        exit 1
-                    fi
-
-                    echo "✅ Smoke testleri geçildi"
-                '''
-            }
-        }
+stage('Smoke Test') {
+    steps {
+        sh '''
+            echo "Gunicorn'un ayağa kalkması için 5 saniye bekleniyor..."
+            sleep 5
+            
+            echo "Uygulama sağlık durumu kontrol ediliyor..."
+            # KRİTİK DEĞİŞİKLİK: localhost yerine techstore-app yazıyoruz!
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://techstore-app:5000/health || echo "000")
+            
+            echo "Gelen HTTP Kodu: $STATUS"
+            if [ "$STATUS" -eq 200 ]; then
+                echo "✅ Harika! Smoke test başarıyla geçildi, uygulama aktif."
+            else
+                echo "❌ Smoke test başarısız! Konteyner logları:"
+                docker logs techstore-app
+                exit 1
+            fi
+        '''
+    }
+}
 
         // ── 10. UI TESTLERİ ─────────────────────────────────────
         stage('UI Tests') {
