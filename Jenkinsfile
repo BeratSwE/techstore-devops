@@ -144,9 +144,13 @@ stage('Push to Docker Hub') {
                     docker stop techstore-app || true
                     docker rm techstore-app || true
             
-                    echo "5000 portunu işgal eden gizli süreçler (Flask vb.) temizleniyor..."
-                    # 5000 portunda çalışan bir süreç varsa PID'sini bulup zorla kapatır
-                    sudo fuser -k 5000/tcp || true
+                    echo "5000 portunu işgal eden süreçler aratılıyor..."
+                    # Eğer portu bir Docker proxy'si veya zombi bir konteyner tutuyorsa temizler
+                    docker ps -q --filter "publish=5000" | xargs -r docker stop || true
+            
+                    echo "Portu tutan yerel bir süreç varsa (sudo olmadan) sonlandırılıyor..."
+                    # fuser yerine sudo istemeyen kill komutunu port bazlı tetikliyoruz
+                    kill -9 $(lsof -t -i:5000) || true
             
                     echo "Yeni konteyner başlatılıyor..."
                     docker run -d \
@@ -155,8 +159,8 @@ stage('Push to Docker Hub') {
                     -p 5000:5000 \
                     berbatadam/techstore-app:latest
                 '''
+            }
     }
-}
 
         // ── 9. SMOKE TEST ───────────────────────────────────────
         stage('Smoke Test') {
