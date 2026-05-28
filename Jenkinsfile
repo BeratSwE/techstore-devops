@@ -153,11 +153,7 @@ stage('Push to Docker Hub') {
                     kill -9 $(lsof -t -i:5000) || true
             
                     echo "Yeni konteyner başlatılıyor..."
-                    docker run -d \
-                    --name techstore-app \
-                    --restart unless-stopped \
-                    -p 5000:5000 \
-                    berbatadam/techstore-app:latest
+                    docker run -d --name techstore-app --network host --restart unless-stopped berbatadam/techstore-app:latest
                 '''
             }
     }
